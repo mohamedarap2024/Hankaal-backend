@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+*.db
+*.db-shm
+*.db-wal
+data/
+uploads/*
+!uploads/.gitkeep
+!uploads/images/
+!uploads/videos/
+uploads/images/*
+!uploads/images/.gitkeep
+uploads/videos/*
+!uploads/videos/.gitkeep
