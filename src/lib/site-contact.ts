@@ -15,6 +15,8 @@ export const SITE_CONTACT = {
 
 export const DEFAULT_SITE_SETTINGS: Record<string, string> = {
   logo_url: "/hankaal-logo.png",
+  hero_image_url:
+    "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1280&auto=format&fit=crop",
   whatsapp_url: SITE_CONTACT.whatsappUrl,
   payment_ussd_prefix: SITE_CONTACT.ussdPrefix,
   payment_ussd_suffix: SITE_CONTACT.ussdSuffix,
