@@ -4,6 +4,7 @@ import { z } from "zod";
 import { pool } from "../db/database.js";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { buildUssdCode, getSetting, getSettings } from "../lib/settings.js";
+import { SITE_CONTACT } from "../lib/site-contact.js";
 import type { Course } from "../types/index.js";
 
 const router = Router();
@@ -78,7 +79,7 @@ router.post("/checkout", async (req: AuthRequest, res) => {
   );
   if (activeOrders.length > 0) {
     const existing = activeOrders[0];
-    const whatsappUrl = await getSetting("whatsapp_url", "https://wa.me/252614554731");
+    const whatsappUrl = await getSetting("whatsapp_url", SITE_CONTACT.whatsappUrl);
     return res.json({
       order: {
         id: existing.id,
@@ -95,8 +96,8 @@ router.post("/checkout", async (req: AuthRequest, res) => {
     });
   }
 
-  const prefix = await getSetting("payment_ussd_prefix", "*712*614554731*");
-  const suffix = await getSetting("payment_ussd_suffix", "#");
+  const prefix = await getSetting("payment_ussd_prefix", SITE_CONTACT.ussdPrefix);
+  const suffix = await getSetting("payment_ussd_suffix", SITE_CONTACT.ussdSuffix);
   const ussdCode = buildUssdCode(course.price, prefix, suffix);
 
   const id = randomUUID();
@@ -111,7 +112,7 @@ router.post("/checkout", async (req: AuthRequest, res) => {
     courseId,
   ]);
 
-  const whatsappUrl = await getSetting("whatsapp_url", "https://wa.me/252614554731");
+  const whatsappUrl = await getSetting("whatsapp_url", SITE_CONTACT.whatsappUrl);
 
   return res.status(201).json({
     order: {
@@ -155,7 +156,7 @@ router.post("/:id/confirm-payment", async (req: AuthRequest, res) => {
     ],
   );
 
-  const whatsappUrl = await getSetting("whatsapp_url", "https://wa.me/252614554731");
+  const whatsappUrl = await getSetting("whatsapp_url", SITE_CONTACT.whatsappUrl);
 
   return res.json({
     message: "Payment confirmed. Admin will review and unlock your course. You can chat below or contact us on WhatsApp.",

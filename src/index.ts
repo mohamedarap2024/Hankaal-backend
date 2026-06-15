@@ -32,9 +32,6 @@ const allowedOrigins = new Set(
   parseOrigins(
     process.env.CORS_ORIGIN,
     process.env.FRONTEND_URL,
-    "https://hankaal.so",
-    "https://www.hankaal.so",
-    "https://hankaal-frontend.vercel.app",
     "http://localhost:8080",
     "http://localhost:8081",
     "http://localhost:5173",
@@ -43,20 +40,10 @@ const allowedOrigins = new Set(
   ),
 );
 
-function isAllowedOrigin(origin: string) {
-  if (allowedOrigins.has(origin)) return true;
-  try {
-    const host = new URL(origin).hostname;
-    return host === "hankaal.so" || host.endsWith(".hankaal.so") || host.endsWith(".vercel.app");
-  } catch {
-    return false;
-  }
-}
-
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || isAllowedOrigin(origin)) {
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS blocked: ${origin}`));

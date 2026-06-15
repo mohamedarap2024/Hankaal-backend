@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { pool } from "./database.js";
+import { DEFAULT_SITE_SETTINGS, SITE_CONTACT } from "../lib/site-contact.js";
 
 const covers = [
   "linear-gradient(135deg,#1e3a8a,#3b82f6)",
@@ -20,21 +21,21 @@ const instructors = [
   { name: "Omar Abdi", title: "Business Strategist", avatar: "https://i.pravatar.cc/150?img=33", bio: "MBA. Helped 200+ startups scale." },
 ];
 
-const categories = ["Programming", "Design", "Business", "Data Science", "Marketing", "Languages"];
+const categories = ["Languages", "Programming", "Design", "Business", "Data Science", "Marketing"];
 
 const titles = [
-  "Complete Web Development Bootcamp",
-  "Mastering UI/UX Design Principles",
-  "Python for Data Science & ML",
-  "Digital Marketing Mastery 2026",
-  "Modern React & TypeScript",
-  "Financial Accounting Fundamentals",
-  "Graphic Design with Figma",
+  "Spoken English for Beginners",
   "Business English for Professionals",
-  "Mobile App Design Essentials",
-  "Cloud Computing with AWS",
-  "Data Visualization with D3.js",
-  "Entrepreneurship & Startup Strategy",
+  "IELTS Preparation — Reading & Writing",
+  "English Grammar Foundations",
+  "English Pronunciation & Accent",
+  "Conversational English — Daily Life",
+  "Academic English for Students",
+  "English for Job Interviews",
+  "TOEFL Preparation Course",
+  "English Writing Skills",
+  "Listening & Comprehension in English",
+  "Advanced English Fluency",
 ];
 
 const defaultTestimonials = [
@@ -50,14 +51,7 @@ const defaultTeam = [
   { name: "Maryan Farah", role: "Student Success Lead", avatar: "https://i.pravatar.cc/300?img=23" },
 ];
 
-const defaultSettings: Record<string, string> = {
-  logo_url: "/hankaal-logo.png",
-  whatsapp_url: "https://wa.me/252614554731",
-  payment_ussd_prefix: "*712*614554731*",
-  payment_ussd_suffix: "#",
-  site_name: "Hankaal College",
-  site_tagline: "Practice · Patience · Progress",
-};
+const defaultSettings = DEFAULT_SITE_SETTINGS;
 
 export async function seedDb() {
   const { rows: countRows } = await pool.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM courses");
@@ -106,7 +100,7 @@ export async function seedDb() {
 
   for (const [key, value] of Object.entries(defaultSettings)) {
     await pool.query(
-      "INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING",
+      "INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
       [key, value],
     );
   }

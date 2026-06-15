@@ -4,6 +4,7 @@ import { z } from "zod";
 import { pool } from "../db/database.js";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { getSetting } from "../lib/settings.js";
+import { SITE_CONTACT } from "../lib/site-contact.js";
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.get("/:orderId", requireAuth, async (req: AuthRequest, res) => {
     [req.params.orderId],
   );
 
-  const whatsappUrl = await getSetting("whatsapp_url", "https://wa.me/252614554731");
+  const whatsappUrl = await getSetting("whatsapp_url", SITE_CONTACT.whatsappUrl);
 
   return res.json({
     messages: rows.map((r) => ({
