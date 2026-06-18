@@ -3,8 +3,10 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { initDb, pool } from "./db/database.js";
+import { initDb } from "./db/database.js";
 import { seedDb } from "./db/seed.js";
+import { requireApiKey } from "./middleware/api-guard.js";
+import { securityHeaders } from "./middleware/security.js";
 import authRoutes from "./routes/auth.js";
 import coursesRoutes from "./routes/courses.js";
 import enrollmentsRoutes from "./routes/enrollments.js";
@@ -40,6 +42,7 @@ const allowedOrigins = new Set(
   ),
 );
 
+app.use(securityHeaders);
 app.use(
   cors({
     origin(origin, callback) {
@@ -55,14 +58,11 @@ app.use(
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-app.get("/api/health", async (_req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT COUNT(*)::int AS count FROM courses");
-    res.json({ status: "ok", database: "postgresql", courses: rows[0].count });
-  } catch (err) {
-    res.status(500).json({ status: "error", message: (err as Error).message });
-  }
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
 });
+
+app.use("/api", requireApiKey);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", coursesRoutes);

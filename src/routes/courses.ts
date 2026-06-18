@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { pool } from "../db/database.js";
 import type { Course } from "../types/index.js";
+import { userCanAccessFullCourse } from "../lib/course-access.js";
 import { normalizeCourse } from "../lib/normalize-course.js";
+import { toCoursePreview, toCourseSummary } from "../lib/public-course.js";
+import { optionalAuth, requireAuth, type AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -10,12 +13,12 @@ function parseCourse(row: { id: string; slug: string; data: Course | string }): 
   return normalizeCourse(raw);
 }
 
-router.get("/", async (req, res) => {
-  const { category, search, sort } = req.query;
+router.get("/", async (_req, res) => {
+  const { category, search, sort } = _req.query;
   const { rows } = await pool.query(
     "SELECT id, slug, data FROM courses WHERE status = 'published' ORDER BY created_at DESC",
   );
-  let courses = rows.map(parseCourse);
+  let courses = rows.map(parseCourse).map(toCourseSummary);
 
   if (typeof category === "string" && category !== "All") {
     courses = courses.filter((c) => c.category === category);
@@ -39,16 +42,22 @@ router.get("/", async (req, res) => {
   return res.json({ courses, total: courses.length });
 });
 
-router.get("/:slug/quizzes", async (req, res) => {
-  const { rows: courseRows } = await pool.query(
+router.get("/:slug/quizzes", requireAuth, async (req: AuthRequest, res) => {
+  const { rows: courseRows } = await pool.query<{ id: string }>(
     "SELECT id FROM courses WHERE slug = $1 AND status = 'published'",
     [req.params.slug],
   );
   if (courseRows.length === 0) return res.status(404).json({ error: "Course not found" });
 
+  const courseId = courseRows[0].id;
+  const allowed = await userCanAccessFullCourse(req.user, courseId);
+  if (!allowed) {
+    return res.status(403).json({ error: "Enroll in this course to access quizzes" });
+  }
+
   const { rows } = await pool.query(
     "SELECT id, title, questions, lesson_key FROM quizzes WHERE course_id = $1",
-    [courseRows[0].id],
+    [courseId],
   );
   return res.json({
     quizzes: rows.map((q) => ({
@@ -60,7 +69,7 @@ router.get("/:slug/quizzes", async (req, res) => {
   });
 });
 
-router.get("/:slug", async (req, res) => {
+router.get("/:slug", optionalAuth, async (req: AuthRequest, res) => {
   const { rows } = await pool.query(
     "SELECT id, slug, data FROM courses WHERE slug = $1 AND status = 'published'",
     [req.params.slug],
@@ -71,6 +80,8 @@ router.get("/:slug", async (req, res) => {
   }
 
   const course = parseCourse(rows[0]);
+  const fullAccess = await userCanAccessFullCourse(req.user, course.id);
+
   const { rows: relatedRows } = await pool.query(
     "SELECT id, slug, data FROM courses WHERE id != $1 AND status = 'published'",
     [course.id],
@@ -78,9 +89,13 @@ router.get("/:slug", async (req, res) => {
   const related = relatedRows
     .map(parseCourse)
     .filter((c) => c.category === course.category)
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(toCourseSummary);
 
-  return res.json({ course, related });
+  return res.json({
+    course: fullAccess ? course : toCoursePreview(course),
+    related,
+  });
 });
 
 export default router;

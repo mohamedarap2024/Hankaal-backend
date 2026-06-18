@@ -27,6 +27,20 @@ const googleSchema = z.object({
   credential: z.string().min(1),
 });
 
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimit(key: string, max = 15, windowMs = 15 * 60 * 1000): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= max) return false;
+  entry.count += 1;
+  return true;
+}
+
 function toUser(row: {
   id: string;
   name: string;
@@ -82,6 +96,10 @@ router.post("/login", async (req, res) => {
   }
 
   const { email, password } = parsed.data;
+  const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+  if (!rateLimit(`login:${ip}:${email.toLowerCase()}`)) {
+    return res.status(429).json({ error: "Too many login attempts. Try again later." });
+  }
   const { rows } = await pool.query(
     "SELECT id, name, email, password_hash, role, avatar_url, created_at FROM users WHERE email = $1",
     [email],

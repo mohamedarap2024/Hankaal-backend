@@ -33,6 +33,25 @@ function toUser(row: {
   };
 }
 
+export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return next();
+  }
+
+  try {
+    const payload = verifyToken(header.slice(7));
+    const { rows } = await pool.query(
+      "SELECT id, name, email, role, avatar_url, created_at FROM users WHERE id = $1",
+      [payload.sub],
+    );
+    if (rows.length > 0) req.user = toUser(rows[0]);
+  } catch {
+    /* ignore invalid token on optional auth */
+  }
+  next();
+}
+
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
