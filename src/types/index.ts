@@ -19,6 +19,8 @@ export type Course = {
   imageUrl?: string;
   videoUrl?: string;
   badge?: string;
+  /** Instructor revenue share percentage (0-100). Private — never sent to public listings. */
+  instructorPercentage?: number;
   objectives: string[];
   curriculum: {
     section: string;

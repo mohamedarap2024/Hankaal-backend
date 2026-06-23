@@ -62,10 +62,27 @@ router.get("/courses", async (req: AuthRequest, res) => {
         "SELECT id, title, questions, lesson_key FROM quizzes WHERE course_id = $1",
         [r.id],
       );
+
+      const { rows: statRows } = await pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = $1)::int AS enrollments,
+           (SELECT COUNT(*) FROM orders o WHERE o.course_id = $1 AND o.status = 'approved')::int AS sales,
+           (SELECT COALESCE(SUM(o.amount), 0) FROM orders o WHERE o.course_id = $1 AND o.status = 'approved') AS revenue`,
+        [r.id],
+      );
+
+      const course = parseCourse(r.data);
+      const revenue = Number(statRows[0].revenue) || 0;
+      const percentage = course.instructorPercentage ?? 0;
+
       return {
-        ...parseCourse(r.data),
+        ...course,
         status: r.status,
         instructorId: r.instructor_id,
+        enrollments: statRows[0].enrollments,
+        sales: statRows[0].sales,
+        revenue,
+        instructorEarnings: Math.round(revenue * (percentage / 100) * 100) / 100,
         quizzes: quizRows.map((q) => ({
           id: q.id,
           title: q.title,

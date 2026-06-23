@@ -44,6 +44,8 @@ export const createCourseSchema = z.object({
   videoUrl: z.string().optional().or(z.literal("")),
   thumbnail: z.string().optional().or(z.literal("")),
   badge: z.string().optional().or(z.literal("")),
+  instructorName: z.string().optional().or(z.literal("")),
+  instructorPercentage: z.number().min(0).max(100).optional(),
   objectives: z.array(z.string().min(1)).min(1),
   curriculum: z.array(curriculumSectionSchema).min(1),
   quizzes: z.array(quizSchema).optional(),
@@ -60,6 +62,7 @@ export function buildCourse(data: CreateCourseInput, user: NonNullable<AuthReque
 
   const lessonCount = data.curriculum.reduce((sum, s) => sum + s.lessons.length, 0);
   const isFree = data.isFree ?? false;
+  const instructorName = data.instructorName?.trim() || user.name;
 
   return {
     id,
@@ -68,10 +71,10 @@ export function buildCourse(data: CreateCourseInput, user: NonNullable<AuthReque
     description: data.description,
     longDescription: data.longDescription,
     instructor: {
-      name: user.name,
+      name: instructorName,
       avatar: user.avatarUrl ?? "https://i.pravatar.cc/150?img=68",
       title: user.role === "admin" ? "Hankaal College" : "Course Instructor",
-      bio: `${user.name} — instructor at Hankaal College.`,
+      bio: `${instructorName} — instructor at Hankaal College.`,
     },
     category: data.category,
     level: data.level,
@@ -87,6 +90,7 @@ export function buildCourse(data: CreateCourseInput, user: NonNullable<AuthReque
     imageUrl: data.imageUrl ?? "",
     videoUrl: data.videoUrl ?? "",
     badge: data.badge || undefined,
+    instructorPercentage: isFree ? 0 : data.instructorPercentage ?? 0,
     objectives: data.objectives,
     curriculum: data.curriculum.map((s) => ({
       section: s.section,
@@ -158,6 +162,7 @@ export function updateCourseData(existing: Course, data: CreateCourseInput): Cou
   const lessonCount = data.curriculum.reduce((sum, s) => sum + s.lessons.length, 0);
   const newSlug = data.title !== existing.title ? slugify(data.title) : existing.slug;
   const isFree = data.isFree ?? false;
+  const instructorName = data.instructorName?.trim() || existing.instructor.name;
 
   return {
     ...existing,
@@ -165,6 +170,7 @@ export function updateCourseData(existing: Course, data: CreateCourseInput): Cou
     title: data.title,
     description: data.description,
     longDescription: data.longDescription,
+    instructor: { ...existing.instructor, name: instructorName },
     category: data.category,
     level: data.level,
     duration: data.duration,
@@ -176,6 +182,7 @@ export function updateCourseData(existing: Course, data: CreateCourseInput): Cou
     imageUrl: data.imageUrl ?? existing.imageUrl ?? "",
     videoUrl: data.videoUrl ?? existing.videoUrl ?? "",
     badge: data.badge || undefined,
+    instructorPercentage: isFree ? 0 : data.instructorPercentage ?? existing.instructorPercentage ?? 0,
     objectives: data.objectives,
     curriculum: data.curriculum.map((s) => ({
       section: s.section,
