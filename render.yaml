@@ -15,6 +15,9 @@ services:
         generateValue: true
       - key: DATABASE_URL
         sync: false
+      # Must match VITE_API_KEY on Vercel — without it the API blocks every request.
+      - key: API_SECRET
+        sync: false
       - key: CORS_ORIGIN
         sync: false
       - key: FRONTEND_URL
