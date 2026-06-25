@@ -7,6 +7,7 @@ import { initDb } from "./db/database.js";
 import { seedDb } from "./db/seed.js";
 import { requireApiKey } from "./middleware/api-guard.js";
 import { securityHeaders } from "./middleware/security.js";
+import { rateLimit } from "./middleware/rate-limit.js";
 import authRoutes from "./routes/auth.js";
 import coursesRoutes from "./routes/courses.js";
 import enrollmentsRoutes from "./routes/enrollments.js";
@@ -22,6 +23,9 @@ import uploadRoutes from "./routes/uploads.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+
+// Behind Render's proxy — needed so req.ip / rate limiting see the real client IP.
+app.set("trust proxy", 1);
 function parseOrigins(...values: (string | undefined)[]) {
   return values
     .filter(Boolean)
@@ -64,7 +68,9 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api", requireApiKey);
 
-app.use("/api/auth", authRoutes);
+// General API rate limit, with a tighter limit on auth to slow brute-force attempts.
+app.use("/api", rateLimit({ name: "api", windowMs: 60_000, max: 150 }));
+app.use("/api/auth", rateLimit({ name: "auth", windowMs: 60_000, max: 20 }), authRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/enrollments", enrollmentsRoutes);
 app.use("/api/contact", contactRoutes);

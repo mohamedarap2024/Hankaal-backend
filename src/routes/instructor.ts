@@ -96,6 +96,53 @@ router.get("/courses", async (req: AuthRequest, res) => {
   return res.json({ courses });
 });
 
+router.get("/courses/:id/students", async (req: AuthRequest, res) => {
+  const { rows: courseRows } = await pool.query(
+    "SELECT id, instructor_id FROM courses WHERE id = $1",
+    [req.params.id],
+  );
+  if (courseRows.length === 0) return res.status(404).json({ error: "Course not found" });
+
+  const isAdmin = req.user!.role === "admin";
+  if (!isAdmin && courseRows[0].instructor_id !== req.user!.id) {
+    return res.status(403).json({ error: "You can only view students of your own courses" });
+  }
+
+  const { rows: enrolled } = await pool.query(
+    `SELECT u.name, u.email, e.progress, e.enrolled_at
+     FROM enrollments e JOIN users u ON u.id = e.user_id
+     WHERE e.course_id = $1
+     ORDER BY e.enrolled_at DESC`,
+    [req.params.id],
+  );
+
+  const { rows: orders } = await pool.query(
+    `SELECT u.name, u.email, o.status, o.amount, o.created_at
+     FROM orders o JOIN users u ON u.id = o.user_id
+     WHERE o.course_id = $1
+     ORDER BY o.created_at DESC`,
+    [req.params.id],
+  );
+
+  const toIso = (d: Date | string) => (d instanceof Date ? d.toISOString() : d);
+
+  return res.json({
+    enrolled: enrolled.map((r) => ({
+      name: r.name,
+      email: r.email,
+      progress: r.progress,
+      enrolledAt: toIso(r.enrolled_at),
+    })),
+    orders: orders.map((r) => ({
+      name: r.name,
+      email: r.email,
+      status: r.status,
+      amount: Number(r.amount),
+      createdAt: toIso(r.created_at),
+    })),
+  });
+});
+
 router.post("/courses", async (req: AuthRequest, res) => {
   const parsed = createCourseSchema.safeParse(req.body);
   if (!parsed.success) {
