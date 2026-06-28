@@ -56,7 +56,7 @@ router.get("/users", async (_req, res) => {
       name: r.name,
       email: r.email,
       role: r.role,
-      createdAt: r.created_at,
+      createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
     })),
   });
 });
@@ -310,6 +310,24 @@ router.get("/enrollments", async (_req, res) => {
       courseTitle: parseCourse(r.data).title,
     })),
   });
+});
+
+router.delete("/orders/:id", async (req, res) => {
+  const { rowCount } = await pool.query("DELETE FROM orders WHERE id = $1", [req.params.id]);
+  if (rowCount === 0) return res.status(404).json({ error: "Order not found" });
+  return res.json({ message: "Order deleted" });
+});
+
+router.delete("/enrollments/:id", async (req, res) => {
+  const { rowCount } = await pool.query("DELETE FROM enrollments WHERE id = $1", [req.params.id]);
+  if (rowCount === 0) return res.status(404).json({ error: "Enrollment not found" });
+  return res.json({ message: "Enrollment deleted" });
+});
+
+router.delete("/messages/:id", async (req, res) => {
+  const { rowCount } = await pool.query("DELETE FROM contact_messages WHERE id = $1", [req.params.id]);
+  if (rowCount === 0) return res.status(404).json({ error: "Message not found" });
+  return res.json({ message: "Message deleted" });
 });
 
 // CMS: testimonials

@@ -42,4 +42,25 @@ router.get("/team", async (_req, res) => {
 
 router.get("/faqs", (_req, res) => res.json({ faqs: defaultFaqs }));
 
+router.get("/instructors", async (_req, res) => {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.name, u.avatar_url, u.role,
+       COUNT(c.id) FILTER (WHERE c.status = 'published')::int AS course_count
+     FROM users u
+     LEFT JOIN courses c ON c.instructor_id = u.id
+     WHERE u.role IN ('instructor', 'admin')
+     GROUP BY u.id, u.name, u.avatar_url, u.role
+     ORDER BY course_count DESC, u.name ASC`,
+  );
+  return res.json({
+    instructors: rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      avatar: r.avatar_url ?? null,
+      role: r.role,
+      courseCount: r.course_count,
+    })),
+  });
+});
+
 export default router;
