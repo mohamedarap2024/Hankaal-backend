@@ -175,4 +175,39 @@ router.get("/me", requireAuth, (req: AuthRequest, res) => {
   return res.json({ user: req.user });
 });
 
+const profileSchema = z.object({
+  name: z.string().min(2).optional(),
+  avatarUrl: z.string().optional(),
+});
+
+router.patch("/profile", requireAuth, async (req: AuthRequest, res) => {
+  const parsed = profileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
+  }
+
+  const sets: string[] = [];
+  const vals: (string | null)[] = [];
+  let i = 1;
+  if (parsed.data.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    vals.push(parsed.data.name);
+  }
+  if (parsed.data.avatarUrl !== undefined) {
+    sets.push(`avatar_url = $${i++}`);
+    vals.push(parsed.data.avatarUrl || null);
+  }
+
+  if (sets.length > 0) {
+    vals.push(req.user!.id);
+    await pool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${i}`, vals);
+  }
+
+  const { rows } = await pool.query(
+    "SELECT id, name, email, role, avatar_url, created_at FROM users WHERE id = $1",
+    [req.user!.id],
+  );
+  return res.json({ user: toUser(rows[0]) });
+});
+
 export default router;

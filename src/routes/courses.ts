@@ -71,7 +71,7 @@ router.get("/:slug/quizzes", requireAuth, async (req: AuthRequest, res) => {
 
 router.get("/:slug", optionalAuth, async (req: AuthRequest, res) => {
   const { rows } = await pool.query(
-    "SELECT id, slug, data FROM courses WHERE slug = $1 AND status = 'published'",
+    "SELECT id, slug, data, instructor_id FROM courses WHERE slug = $1 AND status = 'published'",
     [req.params.slug],
   );
 
@@ -80,6 +80,18 @@ router.get("/:slug", optionalAuth, async (req: AuthRequest, res) => {
   }
 
   const course = parseCourse(rows[0]);
+
+  // Reflect the instructor's current profile photo/name on the course page.
+  if (rows[0].instructor_id) {
+    const { rows: who } = await pool.query(
+      "SELECT name, avatar_url FROM users WHERE id = $1",
+      [rows[0].instructor_id],
+    );
+    if (who[0]?.avatar_url) {
+      course.instructor = { ...course.instructor, avatar: who[0].avatar_url };
+    }
+  }
+
   const fullAccess = await userCanAccessFullCourse(req.user, course.id);
 
   const { rows: relatedRows } = await pool.query(
