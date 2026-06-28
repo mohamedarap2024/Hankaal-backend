@@ -16,9 +16,28 @@ function parseCourse(row: { id: string; slug: string; data: Course | string }): 
 router.get("/", async (_req, res) => {
   const { category, search, sort } = _req.query;
   const { rows } = await pool.query(
-    "SELECT id, slug, data FROM courses WHERE status = 'published' ORDER BY created_at DESC",
+    "SELECT id, slug, data, instructor_id FROM courses WHERE status = 'published' ORDER BY created_at DESC",
   );
-  let courses = rows.map(parseCourse).map(toCourseSummary);
+
+  // Overlay each instructor's current photo/name so course cards stay in sync with profiles.
+  const instructorIds = [...new Set(rows.map((r) => r.instructor_id).filter(Boolean))];
+  const liveById = new Map<string, { name: string; avatar: string | null }>();
+  if (instructorIds.length > 0) {
+    const { rows: us } = await pool.query(
+      "SELECT id, name, avatar_url FROM users WHERE id = ANY($1)",
+      [instructorIds],
+    );
+    for (const u of us) liveById.set(u.id, { name: u.name, avatar: u.avatar_url });
+  }
+
+  let courses = rows.map((r) => {
+    const course = parseCourse(r);
+    const live = r.instructor_id ? liveById.get(r.instructor_id) : undefined;
+    if (live?.avatar) {
+      course.instructor = { ...course.instructor, avatar: live.avatar };
+    }
+    return toCourseSummary(course);
+  });
 
   if (typeof category === "string" && category !== "All") {
     courses = courses.filter((c) => c.category === category);
