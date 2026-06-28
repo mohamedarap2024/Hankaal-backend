@@ -127,4 +127,18 @@ export async function initDb() {
     ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
   `).catch(() => {});
+
+  // Indexes for the hot query paths (course listing, enrollments, orders, quizzes).
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_courses_status_created ON courses (status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_courses_instructor ON courses (instructor_id);
+    CREATE INDEX IF NOT EXISTS idx_courses_category ON courses ((data->>'category'));
+    CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments (course_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_user ON enrollments (user_id);
+    CREATE INDEX IF NOT EXISTS idx_orders_course_status ON orders (course_id, status);
+    CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id);
+    CREATE INDEX IF NOT EXISTS idx_quizzes_course ON quizzes (course_id);
+    CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items (user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_order ON chat_messages (order_id);
+  `).catch(() => {});
 }

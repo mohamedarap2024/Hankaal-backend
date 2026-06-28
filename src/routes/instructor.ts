@@ -56,42 +56,54 @@ router.get("/courses", async (req: AuthRequest, res) => {
         [req.user!.id],
       );
 
-  const courses = await Promise.all(
-    rows.map(async (r) => {
-      const { rows: quizRows } = await pool.query(
-        "SELECT id, title, questions, lesson_key FROM quizzes WHERE course_id = $1",
-        [r.id],
-      );
+  const courseIds = rows.map((r) => r.id);
 
-      const { rows: statRows } = await pool.query(
-        `SELECT
-           (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = $1)::int AS enrollments,
-           (SELECT COUNT(*) FROM orders o WHERE o.course_id = $1 AND o.status = 'approved')::int AS sales,
-           (SELECT COALESCE(SUM(o.amount), 0) FROM orders o WHERE o.course_id = $1 AND o.status = 'approved') AS revenue`,
-        [r.id],
-      );
+  // Batch the related data into three queries instead of 2 per course (no N+1).
+  const [quizRes, enrollRes, orderRes] = await Promise.all([
+    courseIds.length
+      ? pool.query("SELECT id, course_id, title, questions, lesson_key FROM quizzes WHERE course_id = ANY($1)", [courseIds])
+      : Promise.resolve({ rows: [] as any[] }),
+    courseIds.length
+      ? pool.query("SELECT course_id, COUNT(*)::int AS enrollments FROM enrollments WHERE course_id = ANY($1) GROUP BY course_id", [courseIds])
+      : Promise.resolve({ rows: [] as any[] }),
+    courseIds.length
+      ? pool.query(
+          `SELECT course_id,
+             COUNT(*) FILTER (WHERE status = 'approved')::int AS sales,
+             COALESCE(SUM(amount) FILTER (WHERE status = 'approved'), 0) AS revenue
+           FROM orders WHERE course_id = ANY($1) GROUP BY course_id`,
+          [courseIds],
+        )
+      : Promise.resolve({ rows: [] as any[] }),
+  ]);
 
-      const course = parseCourse(r.data);
-      const revenue = Number(statRows[0].revenue) || 0;
-      const percentage = course.instructorPercentage ?? 0;
-
-      return {
-        ...course,
-        status: r.status,
-        instructorId: r.instructor_id,
-        enrollments: statRows[0].enrollments,
-        sales: statRows[0].sales,
-        revenue,
-        instructorEarnings: Math.round(revenue * (percentage / 100) * 100) / 100,
-        quizzes: quizRows.map((q) => ({
-          id: q.id,
-          title: q.title,
-          questions: q.questions,
-          lessonKey: q.lesson_key ?? undefined,
-        })),
-      };
-    }),
+  const quizzesByCourse = new Map<string, any[]>();
+  for (const q of quizRes.rows) {
+    const list = quizzesByCourse.get(q.course_id) ?? [];
+    list.push({ id: q.id, title: q.title, questions: q.questions, lessonKey: q.lesson_key ?? undefined });
+    quizzesByCourse.set(q.course_id, list);
+  }
+  const enrollByCourse = new Map<string, number>(enrollRes.rows.map((r) => [r.course_id, r.enrollments]));
+  const orderByCourse = new Map<string, { sales: number; revenue: number }>(
+    orderRes.rows.map((r) => [r.course_id, { sales: r.sales, revenue: Number(r.revenue) || 0 }]),
   );
+
+  const courses = rows.map((r) => {
+    const course = parseCourse(r.data);
+    const stats = orderByCourse.get(r.id) ?? { sales: 0, revenue: 0 };
+    const percentage = course.instructorPercentage ?? 0;
+
+    return {
+      ...course,
+      status: r.status,
+      instructorId: r.instructor_id,
+      enrollments: enrollByCourse.get(r.id) ?? 0,
+      sales: stats.sales,
+      revenue: stats.revenue,
+      instructorEarnings: Math.round(stats.revenue * (percentage / 100) * 100) / 100,
+      quizzes: quizzesByCourse.get(r.id) ?? [],
+    };
+  });
 
   return res.json({ courses });
 });

@@ -83,14 +83,12 @@ router.get("/:slug", optionalAuth, async (req: AuthRequest, res) => {
   const fullAccess = await userCanAccessFullCourse(req.user, course.id);
 
   const { rows: relatedRows } = await pool.query(
-    "SELECT id, slug, data FROM courses WHERE id != $1 AND status = 'published'",
-    [course.id],
+    `SELECT id, slug, data FROM courses
+     WHERE id != $1 AND status = 'published' AND data->>'category' = $2
+     LIMIT 3`,
+    [course.id, course.category],
   );
-  const related = relatedRows
-    .map(parseCourse)
-    .filter((c) => c.category === course.category)
-    .slice(0, 3)
-    .map(toCourseSummary);
+  const related = relatedRows.map(parseCourse).map(toCourseSummary);
 
   return res.json({
     course: fullAccess ? course : toCoursePreview(course),
