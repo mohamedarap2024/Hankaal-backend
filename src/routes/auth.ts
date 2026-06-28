@@ -203,6 +203,25 @@ router.patch("/profile", requireAuth, async (req: AuthRequest, res) => {
     await pool.query(`UPDATE users SET ${sets.join(", ")} WHERE id = $${i}`, vals);
   }
 
+  // Propagate the new photo/name onto the instructor's courses so they update everywhere.
+  if (parsed.data.avatarUrl !== undefined || parsed.data.name !== undefined) {
+    const { rows: courseRows } = await pool.query(
+      "SELECT id, data FROM courses WHERE instructor_id = $1",
+      [req.user!.id],
+    );
+    for (const c of courseRows) {
+      const course = typeof c.data === "string" ? JSON.parse(c.data) : c.data;
+      course.instructor = {
+        ...course.instructor,
+        ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+        ...(parsed.data.avatarUrl !== undefined && parsed.data.avatarUrl
+          ? { avatar: parsed.data.avatarUrl }
+          : {}),
+      };
+      await pool.query("UPDATE courses SET data = $1 WHERE id = $2", [JSON.stringify(course), c.id]);
+    }
+  }
+
   const { rows } = await pool.query(
     "SELECT id, name, email, role, avatar_url, created_at FROM users WHERE id = $1",
     [req.user!.id],
