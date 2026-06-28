@@ -51,9 +51,8 @@ const uploadVideo = multer({
 
 const router = Router();
 
-router.use(requireAuth, requireInstructor);
-
-router.post("/image", (req, res) => {
+// Any logged-in user can upload an image (e.g. their profile photo).
+router.post("/image", requireAuth, (req, res) => {
   uploadImage.single("file")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "No image file provided" });
@@ -61,7 +60,8 @@ router.post("/image", (req, res) => {
   });
 });
 
-router.post("/video", (req, res) => {
+// Videos are course content — instructors/admins only.
+router.post("/video", requireAuth, requireInstructor, (req, res) => {
   uploadVideo.single("file")(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: "No video file provided" });
