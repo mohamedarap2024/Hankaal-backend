@@ -20,6 +20,14 @@ import chatRoutes from "./routes/chat.js";
 import instructorRoutes from "./routes/instructor.js";
 import uploadRoutes from "./routes/uploads.js";
 
+// Keep the server alive if a stray async error escapes — log instead of crashing.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;

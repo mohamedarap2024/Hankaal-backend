@@ -9,6 +9,17 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  keepAlive: true, // keep TCP alive so cloud Postgres is slower to drop idle clients
+  idleTimeoutMillis: 30_000, // recycle idle clients before the DB closes them
+  connectionTimeoutMillis: 10_000,
+  max: 10,
+});
+
+// CRITICAL: without this handler, a dropped idle connection (cloud Postgres
+// closing idle clients) emits an 'error' event that crashes the whole process.
+// Logging it lets the pool quietly discard the bad client and reconnect.
+pool.on("error", (err) => {
+  console.error("Postgres pool error (idle client dropped, will reconnect):", err.message);
 });
 
 export async function initDb() {
