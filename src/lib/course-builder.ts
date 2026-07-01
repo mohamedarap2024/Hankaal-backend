@@ -49,6 +49,8 @@ export const createCourseSchema = z.object({
   objectives: z.array(z.string().min(1)).min(1),
   curriculum: z.array(curriculumSectionSchema).min(1),
   quizzes: z.array(quizSchema).optional(),
+  midtermExam: lessonQuizSchema.optional(),
+  finalExam: lessonQuizSchema.optional(),
 });
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -91,6 +93,8 @@ export function buildCourse(data: CreateCourseInput, user: NonNullable<AuthReque
     videoUrl: data.videoUrl ?? "",
     badge: data.badge || undefined,
     instructorPercentage: isFree ? 0 : data.instructorPercentage ?? 0,
+    ...(data.midtermExam?.questions?.length ? { midtermExam: { questions: data.midtermExam.questions } } : {}),
+    ...(data.finalExam?.questions?.length ? { finalExam: { questions: data.finalExam.questions } } : {}),
     objectives: data.objectives,
     curriculum: data.curriculum.map((s) => ({
       section: s.section,
@@ -183,6 +187,8 @@ export function updateCourseData(existing: Course, data: CreateCourseInput): Cou
     videoUrl: data.videoUrl ?? existing.videoUrl ?? "",
     badge: data.badge || undefined,
     instructorPercentage: isFree ? 0 : data.instructorPercentage ?? existing.instructorPercentage ?? 0,
+    midtermExam: data.midtermExam?.questions?.length ? { questions: data.midtermExam.questions } : undefined,
+    finalExam: data.finalExam?.questions?.length ? { questions: data.finalExam.questions } : undefined,
     objectives: data.objectives,
     curriculum: data.curriculum.map((s) => ({
       section: s.section,

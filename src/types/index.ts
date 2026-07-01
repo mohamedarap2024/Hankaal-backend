@@ -21,6 +21,9 @@ export type Course = {
   badge?: string;
   /** Instructor revenue share percentage (0-100). Private — never sent to public listings. */
   instructorPercentage?: number;
+  /** Course exams — unlocked by video progress (midterm at 50%, final at 100%). */
+  midtermExam?: { questions: { question: string; options: string[]; correctIndex: number }[] };
+  finalExam?: { questions: { question: string; options: string[]; correctIndex: number }[] };
   objectives: string[];
   curriculum: {
     section: string;
