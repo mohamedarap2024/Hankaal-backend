@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { initDb } from "./db/database.js";
+import { initDb, pool } from "./db/database.js";
 import { seedDb } from "./db/seed.js";
 import { requireApiKey } from "./middleware/api-guard.js";
 import { securityHeaders } from "./middleware/security.js";
@@ -101,6 +101,17 @@ async function start() {
     app.listen(PORT, () => {
       console.log(`Hankaal Backend running at http://localhost:${PORT}`);
       console.log(`Database: PostgreSQL (Neon)`);
+
+      // Keep the free-tier web service AND the Neon database awake so the site
+      // doesn't hit ~50s cold-start disconnects after a few idle minutes.
+      const selfUrl = process.env.RENDER_EXTERNAL_URL;
+      if (selfUrl) {
+        setInterval(() => {
+          fetch(`${selfUrl}/api/health`).catch(() => {});
+          pool.query("SELECT 1").catch(() => {});
+        }, 10 * 60 * 1000); // every 10 min (< Render's 15-min idle timeout)
+        console.log(`Keep-alive self-ping enabled for ${selfUrl}`);
+      }
     });
   } catch (err) {
     console.error("Failed to start server:", err);
