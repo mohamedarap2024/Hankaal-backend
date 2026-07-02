@@ -1,6 +1,6 @@
 /** Official Hankaal College contact & payment defaults (backend) */
 export const SITE_CONTACT = {
-  email: "hankaalcollege@gmail.com",
+  email: "infohankaal@gmail.com",
   phone: "+252 61 4422002",
   phoneDial: "614422002",
   whatsappUrl: "https://wa.me/252614422002",
